@@ -50,18 +50,34 @@ import static org.opencv.imgproc.Imgproc.*;
         return findBestMatch(template,backgroundTemplate,convertType,DEFAULT_CONFIDENCE_THRESHOLD);
     }
 
+     static public void convertTo(Mat mat, MatType convertType){
+         if(convertType == MatType.COLOR){
+             convertToBGR(mat);
+         }
+         else if(convertType == MatType.GRAY){
+             convertToGray(mat);
+         }
+     }
+
      static public void convertTo(Template template, MatType convertType){
          convertTo(template.mat,convertType);
      }
 
-    static public void convertTo(Mat mat, MatType convertType){
-        if(convertType == MatType.COLOR){
-            convertToBGR(mat);
-        }
-        else if(convertType == MatType.GRAY){
-            convertToGray(mat);
-        }
-    }
+
+
+     private static Core.MinMaxLocResult performMatch(Mat templateMat, Mat backgroundMat) {
+         if (backgroundMat.width() < templateMat.width() || backgroundMat.height() < templateMat.height()) {
+             System.err.println("Error: Template dimensions are larger than the background image.");
+             return null;
+         }
+
+         int resultCols = backgroundMat.cols() - templateMat.cols() + 1;
+         int resultRows = backgroundMat.rows() - templateMat.rows() + 1;
+         Mat resultMat = new Mat(resultRows, resultCols, CvType.CV_32FC1);
+
+         Imgproc.matchTemplate(backgroundMat, templateMat, resultMat, Imgproc.TM_CCOEFF_NORMED);
+         return Core.minMaxLoc(resultMat);
+     }
 
     static public MatchResult findBestMatch(Template template, Template backgroundTemplate, MatType convertType, double confidenceThreshold){
 
@@ -79,7 +95,7 @@ import static org.opencv.imgproc.Imgproc.*;
 
         matchTemplate(backgroundTemplate.mat,template.mat,resultMat,TM_CCOEFF_NORMED);
         Core.MinMaxLocResult mmr = Core.minMaxLoc(resultMat);
-
+       // performMatch()
         double bestScore = mmr.maxVal;
         if (bestScore >= confidenceThreshold) {
             // If it is, create and return the MatchResult object.
@@ -237,6 +253,14 @@ import static org.opencv.imgproc.Imgproc.*;
              );
          }
          return winners;
+     }
+
+     public static MatchResult findWantedTemplate(Template wantedTemplate,Template backgroundTemplate, Template badTemplatef, MatType matType, double confidenceThreshold){
+        MatchResult bestMatch = findBestMatch(wantedTemplate,backgroundTemplate,matType,confidenceThreshold);
+                if(bestMatch!=null){
+                  //  Roi
+                }
+        return bestMatch;
      }
 
      /**
