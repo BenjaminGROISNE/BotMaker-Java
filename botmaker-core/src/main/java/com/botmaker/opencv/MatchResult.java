@@ -18,6 +18,14 @@ public class MatchResult {
         this.score = score;
         this.confidenceThreshold = threshold;
         this.winningTemplateId = winningTemplateId;
+        this.winningBackgroundId = winningBackgroundId;
+    }
+
+    public String getTemplateId() {
+        return winningTemplateId;
+    }
+    public String getBackgroundId() {
+        return winningBackgroundId;
     }
 
     public double getScore(){

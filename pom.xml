@@ -7,7 +7,12 @@
     <groupId>com.botmaker</groupId>
     <artifactId>BotMakerApp</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
     <name>BotMakerApp</name>
+    <modules>
+        <module>botmaker-core</module>
+        <module>botmaker-compiler</module>
+    </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

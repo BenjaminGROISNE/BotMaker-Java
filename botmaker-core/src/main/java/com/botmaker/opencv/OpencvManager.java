@@ -1,5 +1,6 @@
 package com.botmaker.opencv;
 
+import javafx.css.Match;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 
@@ -7,12 +8,13 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static java.util.Locale.filter;
 import static org.opencv.imgproc.Imgproc.*;
 
 
 
- public class OpencvManager {
-    private static final double DEFAULT_CONFIDENCE_THRESHOLD = 0.9;
+public class OpencvManager {
+    private static final double DEFAULT_CONFIDENCE_THRESHOLD = 0.8;
     public OpencvManager() {
 
     }
@@ -236,6 +238,31 @@ import static org.opencv.imgproc.Imgproc.*;
                  .collect(Collectors.toList());
      }
 
+
+     //Competitive Matches
+
+     private static boolean hasConflictWith(MatchResult wantedMatch,
+                                            Template badTemplate,
+                                            Template backgroundTemplate,
+                                            MatType matType,
+                                            double confidenceThreshold) {
+         MatchResult badMatch = findBestMatch(badTemplate, backgroundTemplate, matType, confidenceThreshold);
+
+         if (badMatch != null &&
+                 intersects(wantedMatch.rectLocation, badMatch.rectLocation) &&
+                 badMatch.getScore() >= wantedMatch.getScore()) {
+
+             System.out.printf(
+                     "Conflict found: Wanted '%s' (Score: %.4f) was challenged by '%s' (Score: %.4f) at the same location.%n",
+                     wantedMatch.winningTemplateId, wantedMatch.getScore(), badMatch.winningTemplateId, badMatch.getScore()
+             );
+             return true;
+         }
+
+         return false;
+     }
+
+
      public static List<MatchResult> findCompetitiveMatches(
              List<Template> allTemplates,
              Template background,
@@ -255,23 +282,97 @@ import static org.opencv.imgproc.Imgproc.*;
          return winners;
      }
 
-     public static MatchResult findWantedTemplate(Template wantedTemplate,Template backgroundTemplate, Template badTemplatef, MatType matType, double confidenceThreshold){
-        MatchResult bestMatch = findBestMatch(wantedTemplate,backgroundTemplate,matType,confidenceThreshold);
-                if(bestMatch!=null){
-                  //  Roi
-                }
-        return bestMatch;
+     public static MatchResult findWantedTemplate(
+             Template wantedTemplate,
+             Template backgroundTemplate,
+             Template badTemplate,
+             MatType matType,
+             double confidenceThreshold) {
+         MatchResult wantedMatch = findBestMatch(wantedTemplate, backgroundTemplate, matType, confidenceThreshold);
+         if (wantedMatch == null) {
+             return null;
+         }
+         // Step 2: Delegate the conflict check to our new helper function.
+         if (hasConflictWith(wantedMatch, badTemplate, backgroundTemplate, matType, confidenceThreshold)) {
+             return null; // A conflict was found, so the match is invalid.
+         }
+
+         // No conflict, the match is valid.
+         return wantedMatch;
      }
 
-     /**
-      * Helper function to check if two rectangles overlap.
-      */
-     private static boolean intersects(Rect r1, Rect r2) {
-         return r1.x < r2.x + r2.width &&
-                 r1.x + r1.width > r2.x &&
-                 r1.y < r2.y + r2.height &&
-                 r1.y + r1.height > r2.y;
+     public static MatchResult findWantedTemplate(
+             Template wantedTemplate,
+             Template backgroundTemplate,
+             List<Template> allBadTemplates,
+             MatType matType,
+             double confidenceThreshold)
+     {
+         MatchResult wantedMatch = findBestMatch(wantedTemplate, backgroundTemplate, matType, confidenceThreshold);
+         if (wantedMatch == null) {
+             return null;
+         }
+
+         // Step 2: Use a parallel stream to see if ANY bad template causes a conflict.
+         // The lambda becomes a simple and clean call to our helper function.
+         boolean hasAnyConflict = allBadTemplates
+                 .parallelStream()
+                 .anyMatch(badTemplate -> hasConflictWith(wantedMatch, badTemplate, backgroundTemplate, matType, confidenceThreshold));
+
+         // Step 3: Return the result.
+         if (hasAnyConflict) {
+             return null; // At least one conflict was found, so the match is invalid.
+         } else {
+             return wantedMatch; // No conflicts found, the match is valid.
+         }
      }
+
+    public static List<MatchResult> findEachWantedTemplate(
+            List<Template> allWantedTemplates,
+            Template backgroundTemplate,
+            Template badTemplate,
+            MatType matType,
+            double confidenceThreshold)
+    {
+        // Clone the background and bad templates once to make them thread-safe for the parallel stream.
+        // The try-with-resources block ensures their memory is released automatically.
+         Template localBackground = backgroundTemplate.clone();
+         Template localBadTemplate = badTemplate.clone();
+
+        return allWantedTemplates
+                .parallelStream()
+                .map(wantedTemplate ->
+                        findWantedTemplate(wantedTemplate.clone(), localBackground, localBadTemplate, matType, confidenceThreshold)
+                )
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
 
     }
+
+    public static List<MatchResult> findEachWantedTemplate(
+            List<Template> allWantedTemplates,
+            Template backgroundTemplate,
+            List<Template> allBadTemplates,
+            MatType matType,
+            double confidenceThreshold)
+    {
+        return allWantedTemplates
+                .parallelStream()
+                .map(wantedTemplate -> {
+                    Template localWanted = wantedTemplate.clone();
+                    return findWantedTemplate(localWanted, backgroundTemplate, allBadTemplates, matType, confidenceThreshold);
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+
+
+    private static boolean intersects(Rect r1, Rect r2) {
+        return r1.x < r2.x + r2.width &&
+                r1.x + r1.width > r2.x &&
+                r1.y < r2.y + r2.height &&
+                r1.y + r1.height > r2.y;
+    }
+}
 

@@ -39,6 +39,8 @@ public class Template {
     public boolean empty(){
         return mat.empty();
     }
-
+    public Template clone(){
+        return new Template(mat.clone(),id);
+    }
 
 }
