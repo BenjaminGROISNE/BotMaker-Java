@@ -249,7 +249,5 @@ import static org.opencv.imgproc.Imgproc.*;
                  r1.y + r1.height > r2.y;
      }
 
-
-
     }
 
