@@ -1,5 +1,7 @@
 package com.botmaker;
 
+import com.android.ddmlib.AndroidDebugBridge;
+import com.android.ddmlib.IDevice;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -14,8 +16,7 @@ import org.bytedeco.javacv.CanvasFrame;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
-import se.vidstige.jadb.JadbConnection;
-import se.vidstige.jadb.JadbDevice;
+
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,8 +32,8 @@ public class MainApplication extends Application {
         Button javaCvButton = new Button("Test JavaCV (Open Webcam)");
         javaCvButton.setPrefWidth(250.0);
 
-        Button jadbButton = new Button("Test JADB (List Devices)");
-        jadbButton.setPrefWidth(250.0);
+        Button adbButton = new Button("List ADB Devices");
+        adbButton.setPrefWidth(250.0);
 
         Label statusLabel = new Label("Status: Idle");
         statusLabel.setWrapText(true);
@@ -42,12 +43,11 @@ public class MainApplication extends Application {
         rootLayout.setAlignment(Pos.CENTER); // Center the content
         rootLayout.setSpacing(20.0); // Space between elements
         rootLayout.setPadding(new Insets(20, 20, 20, 20)); // Padding around the edges
-
         // --- 3. Add Components to the Layout ---
         rootLayout.getChildren().addAll(
                 titleLabel,
                 javaCvButton,
-                jadbButton,
+                adbButton,
                 statusLabel
         );
 
@@ -59,12 +59,10 @@ public class MainApplication extends Application {
             new Thread(() -> testJavaCv(statusLabel)).start();
         });
 
-        jadbButton.setOnAction(event -> {
-            statusLabel.setText("Testing JADB... Listing devices.");
-            // Run on a background thread
-            new Thread(() -> testJadb(statusLabel)).start();
+        adbButton.setOnAction(event -> {
+            statusLabel.setText("Checking for ADB devices...");
+            new Thread(() -> testAdbDevices(statusLabel)).start();
         });
-
 
         // --- 5. Create and Show the Scene ---
         Scene scene = new Scene(rootLayout, 800, 600);
@@ -95,25 +93,36 @@ public class MainApplication extends Application {
         }
     }
 
-    private void testJadb(Label statusLabel) {
+    private void testAdbDevices(Label statusLabel) {
         try {
-            JadbConnection jadb = new JadbConnection();
-            List<JadbDevice> devices = jadb.getDevices();
+            AndroidDebugBridge.initIfNeeded(false);
+            AndroidDebugBridge bridge = AndroidDebugBridge.createBridge("adb", false);
 
-            String deviceList;
-            if (devices.isEmpty()) {
-                deviceList = "No ADB devices found.";
-            } else {
-                deviceList = "Found devices: " + devices.stream()
-                        .map(JadbDevice::getSerial)
-                        .collect(Collectors.joining(", "));
+            // Wait for initial device list (max 5s)
+            int attempts = 0;
+            while (!bridge.hasInitialDeviceList() && attempts++ < 10) {
+                Thread.sleep(500);
             }
-            // Update the UI on the JavaFX Application Thread
-            Platform.runLater(() -> statusLabel.setText(deviceList));
+
+            IDevice[] devices = bridge.getDevices();
+
+            String message;
+            if (devices.length == 0) {
+                message = "No ADB devices connected.";
+            } else {
+                message = "Connected ADB devices:\n" +
+                        List.of(devices).stream()
+                                .map(IDevice::getName)
+                                .collect(Collectors.joining("\n"));
+            }
+
+            String finalMessage = message;
+            Platform.runLater(() -> statusLabel.setText(finalMessage));
+            AndroidDebugBridge.terminate();
 
         } catch (Exception e) {
-            Platform.runLater(() -> statusLabel.setText("Error connecting to ADB."));
             e.printStackTrace();
+            Platform.runLater(() -> statusLabel.setText("Error: " + e.getMessage()));
         }
     }
 
