@@ -5,10 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.botmaker</groupId>
-    <artifactId>BotMakerApp</artifactId>
+    <artifactId>BotMakerApp</artifactId> <!-- Renamed for clarity -->
     <version>1.0-SNAPSHOT</version>
-    <packaging>pom</packaging>
-    <name>BotMakerApp</name>
+    <packaging>pom</packaging> <!-- This is correct! It's an aggregator. -->
+    <name>BotMakerApp Parent</name>
+
     <modules>
         <module>botmaker-core</module>
         <module>botmaker-compiler</module>
@@ -16,13 +17,52 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.release>21</maven.compiler.release> <!-- Use 'release' for modern Java -->
         <javafx.version>21.0.2</javafx.version>
         <javacv.version>1.5.10</javacv.version>
+        <slf4j.version>2.0.13</slf4j.version>
+        <ddmlib.version>25.3.0</ddmlib.version>
     </properties>
 
-    <!-- Add JitPack repository to find JADB -->
+    <!-- This section defines versions for all child modules to use -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- 1. JavaFX Dependencies -->
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-controls</artifactId>
+                <version>${javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-fxml</artifactId>
+                <version>${javafx.version}</version>
+            </dependency>
+
+            <!-- 2. JavaCV "platform" dependency -->
+            <dependency>
+                <groupId>org.bytedeco</groupId>
+                <artifactId>javacv-platform</artifactId>
+                <version>${javacv.version}</version>
+            </dependency>
+
+            <!-- 3. Logging library -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-simple</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+
+            <!-- 4. Android Debug Bridge Library -->
+            <dependency>
+                <groupId>com.android.tools.ddms</groupId>
+                <artifactId>ddmlib</artifactId>
+                <version>${ddmlib.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- Repositories needed by children can be defined here -->
     <repositories>
         <repository>
             <id>jitpack.io</id>
@@ -30,64 +70,4 @@
         </repository>
     </repositories>
 
-    <dependencies>
-        <!-- 1. JavaFX Dependencies -->
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-fxml</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-
-        <!-- 2. JavaCV "platform" dependency (includes OpenCV, FFmpeg, and all native files) -->
-        <dependency>
-            <groupId>org.bytedeco</groupId>
-            <artifactId>javacv-platform</artifactId>
-            <version>${javacv.version}</version>
-        </dependency>
-
-
-        <!-- 4. Logging library (useful for ADB and other libs) -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>2.0.13</version>
-        </dependency>
-        <dependency>
-            <groupId>com.android.tools.ddms</groupId>
-            <artifactId>ddmlib</artifactId>
-            <version>25.3.0</version> <!-- Or latest -->
-        </dependency>
-
-
-    </dependencies>
-
-    <build>
-        <plugins>
-            <!-- Maven Compiler Plugin -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
-                <configuration>
-                    <release>21</release>
-
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.openjfx</groupId>
-                <artifactId>javafx-maven-plugin</artifactId>
-                <version>0.0.8</version>
-                <configuration>
-                    <mainClass>com.botmaker.MainApplication</mainClass>
-                    <options>--enable-native-access=javafx.graphics</options>
-                </configuration>
-
-            </plugin>
-        </plugins>
-    </build>
 </project>
